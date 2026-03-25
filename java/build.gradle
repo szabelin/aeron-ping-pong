@@ -1,0 +1,88 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.crypto.pingpong'
+version = '1.0-SNAPSHOT'
+
+base {
+    archivesName = 'aeron-ping-pong'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Aeron for low-latency IPC messaging
+    implementation 'io.aeron:aeron-all:1.44.1'
+
+    // Agrona for high-performance data structures
+    implementation 'org.agrona:agrona:1.21.2'
+
+    // HDR Histogram for latency measurement
+    implementation 'org.hdrhistogram:HdrHistogram:2.2.2'
+
+    // Testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+application {
+    mainClass = 'com.crypto.pingpong.PingPong'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ['-Xlint:all']
+}
+
+// =============================================================================
+// PING-PONG TASKS
+// =============================================================================
+
+// Aeron's memory-mapped files and Agrona's UnsafeBuffer require reflective access
+// to internal JDK classes that are closed by default since Java 17.
+def jvmModuleArgs = [
+    '--add-opens', 'java.base/sun.nio.ch=ALL-UNNAMED',
+    '--add-opens', 'java.base/java.util.zip=ALL-UNNAMED'
+]
+
+// Standalone Media Driver
+task runMediaDriver(type: JavaExec) {
+    group = 'application'
+    description = 'Run standalone Media Driver (start this first)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.crypto.pingpong.MediaDriverLauncher'
+    jvmArgs = jvmModuleArgs
+}
+
+// Ping (publishes market data, measures RTT from pong echo)
+task runPing(type: JavaExec) {
+    group = 'application'
+    description = 'Run ping: publish market data and measure round-trip latency'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.crypto.pingpong.PingPong'
+    jvmArgs = jvmModuleArgs
+}
+
+// AeronStat
+task runAeronStat(type: JavaExec) {
+    group = 'application'
+    description = 'Run AeronStat to display Aeron counters'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.aeron.samples.AeronStat'
+    def aeronDir = project.hasProperty('aeron.dir') ? project.property('aeron.dir') : '/tmp/aeron-bridge'
+    args = [aeronDir]
+    jvmArgs = jvmModuleArgs
+}
