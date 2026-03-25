@@ -4,7 +4,7 @@
 
 | # | Project | Focus |
 |---|---------|-------|
-| 1 | [aeron-java-rust-bridge](https://github.com/szabelin/aeron-java-rust-bridge) | Throughput, backpressure & cross-language IPC |
+| 1 | [aeron-ipc-bridge](https://github.com/szabelin/aeron-ipc-bridge) | Throughput, backpressure & cross-language IPC |
 | **2** | **aeron-ping-pong** (this repo) | Latency measurement with round-trip benchmarks |
 | 3 | *aeron-cluster-dashboard* (coming soon) | Cluster stats dashboard & monitoring |
 
@@ -47,7 +47,7 @@ Round-trip latency benchmark between Java and Rust using [Aeron](https://github.
 │  Measurement:  1,000,000 messages                               │
 │  Transport:    Shared memory IPC (no syscalls, no kernel)       │
 │                                                                  │
-│  Throughput measurement → Part 1: aeron-java-rust-bridge        │
+│  Throughput measurement → Part 1: aeron-ipc-bridge        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -158,7 +158,7 @@ Any processing in the pong adds noise to the RTT measurement. By echoing raw byt
 
 ## Message Format
 
-Same 48-byte market data format as [Part 1](https://github.com/szabelin/aeron-java-rust-bridge):
+Same 48-byte market data format as [Part 1](https://github.com/szabelin/aeron-ipc-bridge):
 
 ```
 [0-7]   timestamp (i64 ns)     ← System.nanoTime() embedded here for RTT
