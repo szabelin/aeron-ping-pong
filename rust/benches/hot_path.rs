@@ -92,13 +92,23 @@ fn bench_histogram_record_corrected(c: &mut Criterion) {
 }
 
 // -----------------------------------------------------------------------------
-// Clock — baseline for later quanta comparison
+// Clock — std vs quanta comparison
 // -----------------------------------------------------------------------------
 
 fn bench_std_instant_now(c: &mut Criterion) {
     c.bench_function("std::Instant::now", |b| {
         b.iter(|| {
             black_box(std::time::Instant::now());
+        })
+    });
+}
+
+fn bench_quanta_instant_now(c: &mut Criterion) {
+    let clock = quanta::Clock::new();
+
+    c.bench_function("quanta::Clock::now", |b| {
+        b.iter(|| {
+            black_box(clock.now());
         })
     });
 }
@@ -111,5 +121,6 @@ criterion_group!(
     bench_histogram_record,
     bench_histogram_record_corrected,
     bench_std_instant_now,
+    bench_quanta_instant_now,
 );
 criterion_main!(benches);

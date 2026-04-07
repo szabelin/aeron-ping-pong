@@ -220,6 +220,7 @@ aeron-ping-pong/
 ### Rust
 - rusteron-client 0.1 (Aeron C bindings)
 - hdrhistogram 7.5 (latency recording)
+- quanta 0.12 (fast monotonic clock via TSC)
 - ratatui 0.28 + crossterm 0.28 (TUI)
 - criterion 0.5 (microbenchmarks, dev-only)
 
@@ -249,7 +250,10 @@ Results on Apple M-series (ARM64):
 | `decode_all_fields` | 11.4 ns | Decode timestamp, symbol (UTF-8), price, qty, flags                           |
 | `histogram_record` | 4.3 ns | HDR Histogram bucket lookup + counter increment                               |
 | `histogram_record_corrected` | 6.9 ns | Same + coordinated omission phantom samples                                   |
-| `std::Instant::now` | 25.3 ns | Baseline clock call — most expensive hot-path op (I shall fix that next then) |
+| `std::Instant::now` | 25.3 ns | clock_gettime(CLOCK_MONOTONIC) syscall |
+| `quanta::Clock::now` | 12.3 ns | TSC read — **2x faster**, used in hot path |
+
+The clock call was the most expensive operation in the measurement loop. Switching from `std::time::Instant` to [quanta](https://github.com/metrics-rs/quanta) in the worker thread saves ~13ns per round-trip by reading the CPU timestamp counter (TSC) directly instead of going through `clock_gettime`. Still monotonic, still immune to NTP/wall-clock drift.
 
 HTML reports with confidence intervals and regression detection: `rust/target/criterion/report/index.html`
 

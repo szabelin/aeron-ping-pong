@@ -16,7 +16,7 @@ use rusteron_client::*;
 use std::ffi::CString;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 // =============================================================================
 // PRE-GENERATE MESSAGES (same pool approach as Java)
@@ -74,23 +74,23 @@ fn pregenerate_messages() -> Vec<[u8; MESSAGE_SIZE]> {
 // MONOTONIC CLOCK
 // =============================================================================
 
-// Monotonic clock using Rust's Instant (guaranteed monotonic per std docs).
-// Uses a fixed baseline so elapsed nanos stay small and fit in u64.
-// Note: Rust's Instant::now() uses clock_gettime(CLOCK_MONOTONIC) on macOS/Linux,
-// which is immune to wall-clock adjustments (NTP, daylight savings, etc.).
+// Monotonic clock using quanta — reads TSC directly, ~3-5ns vs ~25ns for
+// std::Instant::now() which goes through clock_gettime(CLOCK_MONOTONIC).
+// Still monotonic and immune to wall-clock adjustments (NTP, daylight savings).
 use std::sync::OnceLock;
-static CLOCK_START: OnceLock<Instant> = OnceLock::new();
+static CLOCK: OnceLock<quanta::Clock> = OnceLock::new();
+static CLOCK_START: OnceLock<quanta::Instant> = OnceLock::new();
 
 fn init_clock() {
-    CLOCK_START.get_or_init(Instant::now);
+    let clock = CLOCK.get_or_init(quanta::Clock::new);
+    CLOCK_START.get_or_init(|| clock.now());
 }
 
 #[inline]
 fn nanos_since_start() -> u64 {
-    CLOCK_START
-        .get()
-        .map(|start| start.elapsed().as_nanos() as u64)
-        .unwrap_or(0)
+    let clock = CLOCK.get().unwrap();
+    let start = CLOCK_START.get().unwrap();
+    clock.now().duration_since(*start).as_nanos() as u64
 }
 
 // =============================================================================
@@ -280,12 +280,13 @@ pub fn worker_thread(params: Arc<SharedParams>, sample_tx: Sender<LatencySample>
         // For production: BackoffIdleStrategy (saves CPU).
         // For benchmarking: busy-spin (standard practice, matches Aeron/LMAX examples).
         inner.got_pong.set(false);
-        let wait_start = Instant::now();
+        let clock = CLOCK.get().unwrap();
+        let wait_start = clock.now();
         let timeout = Duration::from_millis(100); // 100ms timeout -- generous for IPC
 
         while !inner.got_pong.get() {
             subscription.poll(Some(&handler), frag_limit as usize).ok();
-            if wait_start.elapsed() > timeout {
+            if clock.now().duration_since(wait_start) > timeout {
                 params.timeouts.fetch_add(1, Ordering::Relaxed);
                 break;
             }

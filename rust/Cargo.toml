@@ -20,6 +20,9 @@ crossbeam-channel = "0.5"
 # HDR Histogram for latency measurement
 hdrhistogram = "7.5"
 
+# Fast monotonic clock — reads TSC directly, bypasses clock_gettime syscall
+quanta = "0.12"
+
 # =============================================================================
 # BINARIES
 # =============================================================================
