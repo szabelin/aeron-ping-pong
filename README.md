@@ -203,6 +203,8 @@ aeron-ping-pong/
 │   │           ├── state.rs           #   Shared state & data types
 │   │           ├── worker.rs          #   Ping-pong measurement thread
 │   │           └── render.rs          #   TUI rendering (6 panels)
+│   ├── benches/
+│   │   └── hot_path.rs               # Criterion microbenchmarks
 │   └── Cargo.toml
 └── docs/
     └── images/
@@ -219,6 +221,7 @@ aeron-ping-pong/
 - rusteron-client 0.1 (Aeron C bindings)
 - hdrhistogram 7.5 (latency recording)
 - ratatui 0.28 + crossterm 0.28 (TUI)
+- criterion 0.5 (microbenchmarks, dev-only)
 
 ## Platform Requirements
 
@@ -228,6 +231,27 @@ aeron-ping-pong/
 - **Rust**: 1.70+
 
 **Note**: Uses native byte order (little-endian). Big-endian architectures are not supported.
+
+## Microbenchmarks (Criterion)
+
+Hot-path operations benchmarked with [Criterion.rs](https://github.com/bheisler/criterion.rs) in release mode:
+
+```bash
+cd rust && cargo bench
+```
+
+Results on Apple M-series (ARM64):
+
+| Operation | Time | What it measures                                                              |
+|---|---|-------------------------------------------------------------------------------|
+| `encode_timestamp` | 223 ps | Single 8-byte LE write into message buffer                                    |
+| `encode_full_message` | 430 ps | All 48 bytes: timestamp + symbol + prices + flags                             |
+| `decode_all_fields` | 11.4 ns | Decode timestamp, symbol (UTF-8), price, qty, flags                           |
+| `histogram_record` | 4.3 ns | HDR Histogram bucket lookup + counter increment                               |
+| `histogram_record_corrected` | 6.9 ns | Same + coordinated omission phantom samples                                   |
+| `std::Instant::now` | 25.3 ns | Baseline clock call — most expensive hot-path op (I shall fix that next then) |
+
+HTML reports with confidence intervals and regression detection: `rust/target/criterion/report/index.html`
 
 ## Benchmark Environment
 
